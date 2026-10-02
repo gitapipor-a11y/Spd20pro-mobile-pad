@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPD20 Mobile Pad</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#111;
+  color:white;
+  font-family:Arial,sans-serif;
+  text-align:center;
+}
+h1{margin:15px 0 5px}
+.bank{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin:10px;
+}
+button{
+  border:0;
+  border-radius:10px;
+  padding:12px 18px;
+  font-weight:bold;
+}
+.bank button.active{background:#20c45a;color:white}
+.bank button{background:#333;color:white}
+
+.controls{
+  margin:10px;
+  padding:10px;
+  background:#222;
+  border-radius:12px;
+}
+.controls button{background:#444;color:white}
+
+.pads{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  padding:12px;
+}
+.pad{
+  height:120px;
+  background:linear-gradient(#444,#222);
+  border:2px solid #666;
+  border-radius:16px;
+  color:white;
+  font-size:20px;
+  font-weight:bold;
+  touch-action:manipulation;
+}
+.pad:active{
+  background:#e63946;
+  transform:scale(.96);
+}
+.small{
+  display:block;
+  font-size:12px;
+  margin-top:5px;
+  color:#bbb;
+}
+</style>
+</head>
+
+<body>
+
+<h1>SPD-20 MOBILE PAD</h1>
+
+<div class="bank">
+  <button id="A" class="active" onclick="setBank('A')">BANK A</button>
+  <button id="B" onclick="setBank('B')">BANK B</button>
+  <button id="S" onclick="setBank('S')">SUB BANK</button>
+</div>
+
+<div class="controls">
+  <button onclick="toggleDelay()">AUTO DELAY: <span id="delayText">OFF</span></button>
+  <br><br>
+  Volume:
+  <input id="volume" type="range" min="0" max="1" step=".01" value=".8">
+</div>
+
+<div class="pads" id="pads"></div>
+
+<script>
+let audio;
+let bank="A";
+let delayOn=false;
+
+const sounds={
+ A:["Kick","Snare","Tom Low","Tom Mid","Tom High","Hi-Hat","Crash","Ride","Clap","Cowbell","Perc","Open HH"],
+ B:["Kick 2","Snare 2","Tom 2","Tom 3","Tom 4","HH 2","Crash 2","Ride 2","Clap 2","Perc 2","Bell","Open HH 2"],
+ S:["Sub Kick","Sub Snare","Sub Tom","Sub Clap","Sub Hat","Sub Crash","Sub Ride","Sub Perc","Deep Tom","Deep Kick","Deep Bell","Deep Clap"]
+};
+
+function createAudio(){
+ if(!audio){
+   audio=new (window.AudioContext||window.webkitAudioContext)();
+ }
+ if(audio.state==="suspended") audio.resume();
+}
+
+function setBank(b){
+ bank=b;
+ document.querySelectorAll(".bank button").forEach(x=>x.classList.remove("active"));
+ document.getElementById(b).classList.add("active");
+ buildPads();
+}
+
+function buildPads(){
+ const box=document.getElementById("pads");
+ box.innerHTML="";
+ sounds[bank].forEach((name,i)=>{
+   let p=document.createElement("button");
+   p.className="pad";
+   p.innerHTML=(i+1)+"<span class='small'>"+name+"</span>";
+   p.addEventListener("pointerdown",()=>playPad(i));
+   box.appendChild(p);
+ });
+}
+
+function playPad(n){
+ createAudio();
+
+ const now=audio.currentTime;
+ const gain=audio.createGain();
+ const osc=audio.createOscillator();
+
+ gain.gain.value=parseFloat(document.getElementById("volume").value);
+
+ osc.connect(gain);
+ gain.connect(audio.destination);
+
+ if(delayOn){
+   const delay=audio.createDelay(1);
+   const dg=audio.createGain();
+   delay.delayTime.value=.18;
+   dg.gain.value=.35;
+   gain.connect(delay);
+   delay.connect(dg);
+   dg.connect(audio.destination);
+ }
+
+ let freq=80+n*35;
+
+ if(n===0) freq=55;
+ if(n===1) freq=180;
+ if(n===5) freq=5000;
+ if(n===6) freq=900;
+ if(n===7) freq=1200;
+
+ osc.frequency.setValueAtTime(freq,now);
+
+ if(n===0){
+   osc.frequency.exponentialRampToValueAtTime(35,now+.18);
+ }
+
+ osc.type=(n%3===0)?"sine":"triangle";
+
+ gain.gain.setValueAtTime(gain.gain.value,now);
+ gain.gain.exponentialRampToValueAtTime(.001,now+.35);
+
+ osc.start(now);
+ osc.stop(now+.36);
+}
+
+function toggleDelay(){
+ delayOn=!delayOn;
+ document.getElementById("delayText").textContent=delayOn?"ON":"OFF";
+}
+
+buildPads();
+</script>
+
+</body>
+</html>
